@@ -34,29 +34,39 @@ def handle_bypass(message):
         return
         
     url = urls[0]
-    processing_msg = bot.reply_to(message, "⏳ New API se link bypass ho raha hai... Please wait...")
+    processing_msg = bot.reply_to(message, "⏳ Link bypass karne ki koshish chal rahi hai... Please wait...")
     
     try:
-        # Naya Free Bypasser API URL
+        # Hum ek doosra reliable public URL try kar rahe hain
         api_url = f"https://api.bypass.lat/bypass?url={url}"
         response = requests.get(api_url, timeout=15)
-        data = response.json()
         
-        # Sahi key se data nikaal rahe hain
-        final_link = data.get("destination") or data.get("url") or data.get("link") or data.get("bypassed_url")
+        # Check kar rahe hain ki response JSON hai ya normal text/html
+        try:
+            data = response.json()
+            final_link = data.get("destination") or data.get("url") or data.get("link") or data.get("bypassed_url")
+            
+            if final_link:
+                response_text = f"🎯 **Aapka Direct Link Mil Gaya:**\n\n🔗 {final_link}"
+                bot.edit_message_text(response_text, chat_id=processing_msg.chat.id, message_id=processing_msg.message_id, disable_web_page_preview=False)
+            else:
+                bot.edit_message_text(f"⚠️ API se link nahi mila।\n\n**Raw Response:** `{str(data)}`", chat_id=processing_msg.chat.id, message_id=processing_msg.message_id)
         
-        if final_link:
-            response_text = f"🎯 **Aapka Direct Link Mil Gaya:**\n\n🔗 {final_link}"
-            bot.edit_message_text(response_text, chat_id=processing_msg.chat.id, message_id=processing_msg.message_id, disable_web_page_preview=False)
-        else:
-            error_msg = f"⚠️ Naye API ne bhi direct link nahi diya।\n\n**Raw Response:** `{str(data)}`"
-            bot.edit_message_text(error_msg, chat_id=processing_msg.chat.id, message_id=processing_msg.message_id, parse_mode="Markdown")
+        except ValueError:
+            # Agar API ne JSON ke bajay HTML error page de diya ho
+            bot.edit_message_text(f"❌ API temporary down hai ya usne Render ko block kiya hai।\n\n**Server Response:** `{response.text[:200]}`", chat_id=processing_msg.chat.id, message_id=processing_msg.message_id)
             
     except Exception as e:
-        bot.edit_message_text(f"❌ Error: Link process karne mein dikkat aayi। Details: {str(e)}", chat_id=processing_msg.chat.id, message_id=processing_msg.message_id)
+        bot.edit_message_text(f"❌ Connection Error: {str(e)}", chat_id=processing_msg.chat.id, message_id=processing_msg.message_id)
 
 # 3. Main Function
 if __name__ == "__main__":
     t = threading.Thread(target=run_flask)
     t.start()
+    
+    # [CRITICAL] Purane saare stuck connections aur webhooks ko clear karne ke liye
+    print("Clearing old telegram sessions...")
+    bot.delete_webhook(drop_pending_updates=True)
+    
+    print("Bot starting fresh polling...")
     bot.polling(none_stop=True)
