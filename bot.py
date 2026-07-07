@@ -34,23 +34,22 @@ def handle_bypass(message):
         return
         
     url = urls[0]
-    processing_msg = bot.reply_to(message, "⏳ Link bypass ho raha hai... Please wait...")
+    processing_msg = bot.reply_to(message, "⏳ New API se link bypass ho raha hai... Please wait...")
     
     try:
-        # Free Bypasser API
-        api_url = f"https://api.bypass.vip/bypass?url={url}"
+        # Naya Free Bypasser API URL
+        api_url = f"https://api.bypass.lat/bypass?url={url}"
         response = requests.get(api_url, timeout=15)
         data = response.json()
         
-        # Alag-alag possible keys check kar rahe hain taaki 'None' na aaye
+        # Sahi key se data nikaal rahe hain
         final_link = data.get("destination") or data.get("url") or data.get("link") or data.get("bypassed_url")
         
         if final_link:
             response_text = f"🎯 **Aapka Direct Link Mil Gaya:**\n\n🔗 {final_link}"
             bot.edit_message_text(response_text, chat_id=processing_msg.chat.id, message_id=processing_msg.message_id, disable_web_page_preview=False)
         else:
-            # Agar phir bhi nahi mila toh API ka raw data show karega debugging ke liye
-            error_msg = f"⚠️ API ne direct link nahi diya।\n\n**Raw Response:** `{str(data)}`"
+            error_msg = f"⚠️ Naye API ne bhi direct link nahi diya।\n\n**Raw Response:** `{str(data)}`"
             bot.edit_message_text(error_msg, chat_id=processing_msg.chat.id, message_id=processing_msg.message_id, parse_mode="Markdown")
             
     except Exception as e:
