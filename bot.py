@@ -34,14 +34,23 @@ def handle_bypass(message):
         return
         
     url = urls[0]
-    processing_msg = bot.reply_to(message, "⏳ Link bypass karne ki koshish chal rahi hai... Please wait...")
+    processing_msg = bot.reply_to(message, "⏳ Browser agent ke sath bypass chal raha hai... Please wait...")
+    
+    # [IMPORTANT] Cloudflare ko dhoka dene ke liye Fake Browser Headers
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Origin': 'https://bypass.lat',
+        'Referer': 'https://bypass.lat/'
+    }
     
     try:
-        # Hum ek doosra reliable public URL try kar rahe hain
         api_url = f"https://api.bypass.lat/bypass?url={url}"
-        response = requests.get(api_url, timeout=15)
         
-        # Check kar rahe hain ki response JSON hai ya normal text/html
+        # Is baar hum headers bhej rahe hain
+        response = requests.get(api_url, headers=headers, timeout=15)
+        
         try:
             data = response.json()
             final_link = data.get("destination") or data.get("url") or data.get("link") or data.get("bypassed_url")
@@ -53,8 +62,8 @@ def handle_bypass(message):
                 bot.edit_message_text(f"⚠️ API se link nahi mila।\n\n**Raw Response:** `{str(data)}`", chat_id=processing_msg.chat.id, message_id=processing_msg.message_id)
         
         except ValueError:
-            # Agar API ne JSON ke bajay HTML error page de diya ho
-            bot.edit_message_text(f"❌ API temporary down hai ya usne Render ko block kiya hai।\n\n**Server Response:** `{response.text[:200]}`", chat_id=processing_msg.chat.id, message_id=processing_msg.message_id)
+            # Agar abhi bhi Cloudflare block karega toh ye message aayega
+            bot.edit_message_text(f"❌ Cloudflare ne server IP ko block kiya hai।\n\n**Response Code:** {response.status_code}\n*Koshish jaari hai, thodi der mein try karein।*", chat_id=processing_msg.chat.id, message_id=processing_msg.message_id)
             
     except Exception as e:
         bot.edit_message_text(f"❌ Connection Error: {str(e)}", chat_id=processing_msg.chat.id, message_id=processing_msg.message_id)
@@ -64,9 +73,6 @@ if __name__ == "__main__":
     t = threading.Thread(target=run_flask)
     t.start()
     
-    # [CRITICAL] Purane saare stuck connections aur webhooks ko clear karne ke liye
-    print("Clearing old telegram sessions...")
+    # Stuck sessions clear karne ke liye
     bot.delete_webhook(drop_pending_updates=True)
-    
-    print("Bot starting fresh polling...")
     bot.polling(none_stop=True)
