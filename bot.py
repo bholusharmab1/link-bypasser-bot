@@ -5,7 +5,7 @@ import requests
 import re
 from flask import Flask
 
-# 1. Render ke liye ek dummy Web Server banana
+# 1. Render Dummy Web Server
 app = Flask('')
 
 @app.route('/')
@@ -13,12 +13,11 @@ def home():
     return "Bhai, aapka bot bilkul zinda hai!"
 
 def run_flask():
-    # Render khud PORT environment variable deta hai
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
 # 2. Telegram Bot Setup
-BOT_TOKEN = "8948341231:AAFGtG-axrVYZbp13E4-aJ4ka8FXRbTleDs"
+BOT_TOKEN = "8948341231:AAFGtG-axrVYZbp13E4-aJ4ka8FXRbTleDs"  # <--- Apna Token yahaan daalein
 bot = telebot.TeleBot(BOT_TOKEN)
 
 @bot.message_handler(commands=['start'])
@@ -38,26 +37,27 @@ def handle_bypass(message):
     processing_msg = bot.reply_to(message, "⏳ Link bypass ho raha hai... Please wait...")
     
     try:
+        # Free Bypasser API
         api_url = f"https://api.bypass.vip/bypass?url={url}"
         response = requests.get(api_url, timeout=15)
         data = response.json()
         
-        if data.get("status") == "success" or "destination" in data:
-            final_link = data.get("destination")
+        # Alag-alag possible keys check kar rahe hain taaki 'None' na aaye
+        final_link = data.get("destination") or data.get("url") or data.get("link") or data.get("bypassed_url")
+        
+        if final_link:
             response_text = f"🎯 **Aapka Direct Link Mil Gaya:**\n\n🔗 {final_link}"
             bot.edit_message_text(response_text, chat_id=processing_msg.chat.id, message_id=processing_msg.message_id, disable_web_page_preview=False)
         else:
-            bot.edit_message_text("⚠️ Yeh link abhi bypass nahi ho pa rha hai।", chat_id=processing_msg.chat.id, message_id=processing_msg.message_id)
+            # Agar phir bhi nahi mila toh API ka raw data show karega debugging ke liye
+            error_msg = f"⚠️ API ne direct link nahi diya।\n\n**Raw Response:** `{str(data)}`"
+            bot.edit_message_text(error_msg, chat_id=processing_msg.chat.id, message_id=processing_msg.message_id, parse_mode="Markdown")
             
     except Exception as e:
-        bot.edit_message_text("❌ Error: Link process karne mein dikkat aayi।", chat_id=processing_msg.chat.id, message_id=processing_msg.message_id)
+        bot.edit_message_text(f"❌ Error: Link process karne mein dikkat aayi। Details: {str(e)}", chat_id=processing_msg.chat.id, message_id=processing_msg.message_id)
 
-# 3. Dono (Flask + Bot) ko ek sath chalane ka main function
+# 3. Main Function
 if __name__ == "__main__":
-    # Flask server ko background thread mein chalu karein
     t = threading.Thread(target=run_flask)
     t.start()
-    
-    # Main thread mein Telegram bot ko chalne dein
     bot.polling(none_stop=True)
-                    
